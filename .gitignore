@@ -1,4 +1,7 @@
+**/.DS_Store
+
 # Binaries for programs and plugins
+flappy-go
 *.exe
 *.dll
 *.so
