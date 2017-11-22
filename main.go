@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -36,25 +36,29 @@ func run() error {
 	}
 	defer w.Destroy()
 
-	if err := drawTitle(r); err != nil {
+	if err := drawTitle(r, "Flappy Bird"); err != nil {
 		return fmt.Errorf("could not draw title: %v", err)
 	}
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	s, err := newScene(r)
 	if err != nil {
 		return fmt.Errorf("could not create new scene: %v", err)
 	}
 
-	if err := s.paint(r); err != nil {
-		return fmt.Errorf("could not paint: %v", err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for {
+		select {
+		case err := <-s.run(ctx, r):
+			return err
+		case <-time.After(5 * time.Second):
+			return nil
+		}
 	}
-
-	time.Sleep(5 * time.Second)
-	return nil
 }
 
-func drawTitle(r *sdl.Renderer) error {
+func drawTitle(r *sdl.Renderer, title string) error {
 	r.Clear()
 
 	// Open fonts from ttf
@@ -64,7 +68,7 @@ func drawTitle(r *sdl.Renderer) error {
 	}
 	defer f.Close()
 
-	s, err := f.RenderUTF8_Solid("Flappy Go", sdl.Color{R: 255, G: 0, B: 0, A: 255})
+	s, err := f.RenderUTF8_Solid(title, sdl.Color{R: 255, G: 0, B: 0, A: 255})
 	if err != nil {
 		return fmt.Errorf("could not render UTF8: %v", err)
 	}
@@ -80,22 +84,6 @@ func drawTitle(r *sdl.Renderer) error {
 		return fmt.Errorf("could not copy texutre: %v", err)
 	}
 
-	r.Present()
-	return nil
-}
-
-func drawBackground(r *sdl.Renderer) error {
-	r.Clear()
-
-	t, err := img.LoadTexture(r, "res/imgs/background.png")
-	if err != nil {
-		return fmt.Errorf("could not laod texture: %v", err)
-	}
-	defer t.Destroy()
-
-	if r.Copy(t, nil, nil); err != nil {
-		return fmt.Errorf("could not copy background: %v", err)
-	}
 	r.Present()
 	return nil
 }
