@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"time"
@@ -47,9 +46,15 @@ func run() error {
 	}
 	defer s.destroy()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	time.AfterFunc(5*time.Second, cancel)
-	return <-s.run(ctx, r)
+	events := make(chan sdl.Event)
+	errc := s.run(events, r)
+	for {
+		select {
+		case err := <-errc:
+			return err
+		case events <- sdl.WaitEvent():
+		}
+	}
 }
 
 func drawTitle(r *sdl.Renderer, title string) error {
