@@ -30,13 +30,13 @@ func run() error {
 	}
 	defer ttf.Quit()
 
-	w, r, err := sdl.CreateWindowAndRenderer(800, 600, sdl.WINDOW_SHOWN)
+	w, r, err := sdl.CreateWindowAndRenderer(1000, 500, sdl.WINDOW_SHOWN)
 	if err != nil {
 		return fmt.Errorf("could not create window: %v", err)
 	}
 	defer w.Destroy()
 
-	if err := drawTitle(r, "Flappy Bird"); err != nil {
+	if err := drawTitle(r, "Flappy Gopher"); err != nil {
 		return fmt.Errorf("could not draw title: %v", err)
 	}
 	time.Sleep(2 * time.Second)
@@ -45,24 +45,18 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("could not create new scene: %v", err)
 	}
+	defer s.destroy()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for {
-		select {
-		case err := <-s.run(ctx, r):
-			return err
-		case <-time.After(5 * time.Second):
-			return nil
-		}
-	}
+	time.AfterFunc(5*time.Second, cancel)
+	return <-s.run(ctx, r)
 }
 
 func drawTitle(r *sdl.Renderer, title string) error {
 	r.Clear()
 
 	// Open fonts from ttf
-	f, err := ttf.OpenFont("res/fonts/Flappy.ttf", 15)
+	f, err := ttf.OpenFont("res/fonts/Flappy.ttf", 50)
 	if err != nil {
 		return fmt.Errorf("could not open font: %v", err)
 	}
