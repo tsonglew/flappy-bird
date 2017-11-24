@@ -2,21 +2,22 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+const frequency = 10
+
 type scene struct {
-	time int
-	bg   *sdl.Texture
-	bird *bird
+	bg    *sdl.Texture
+	bird  *bird
+	pipes *pipes
 }
 
 func newScene(r *sdl.Renderer) (*scene, error) {
-	bg, err := img.LoadTexture(r, "res/imgs/firewatch.jpg")
+	bg, err := img.LoadTexture(r, "res/imgs/background.png")
 	if err != nil {
 		return nil, fmt.Errorf("could not load background: %v", err)
 	}
@@ -25,14 +26,19 @@ func newScene(r *sdl.Renderer) (*scene, error) {
 		return nil, fmt.Errorf("could not new bird: %v", err)
 	}
 
-	return &scene{bg: bg, bird: bird}, nil
+	pipes, err := newPipes(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not create pipes: %v", err)
+	}
+
+	return &scene{bg: bg, bird: bird, pipes: pipes}, nil
 }
 
 func (s *scene) run(events chan sdl.Event, r *sdl.Renderer) <-chan error {
 	errc := make(chan error)
 	go func() {
 		defer close(errc)
-		tick := time.Tick(10 * time.Millisecond)
+		tick := time.Tick(frequency * time.Millisecond)
 		for {
 			select {
 			case e := <-events:
@@ -41,6 +47,14 @@ func (s *scene) run(events chan sdl.Event, r *sdl.Renderer) <-chan error {
 				}
 			case <-tick:
 				s.update()
+				if s.bird.dead {
+					time.Sleep(time.Second)
+					if err := drawTitle(r, "Game Over"); err != nil {
+						errc <- err
+					}
+					time.Sleep(time.Second)
+					s.restart()
+				}
 				if err := s.paint(r); err != nil {
 					errc <- err
 				}
@@ -56,15 +70,20 @@ func (s *scene) handleEvent(e sdl.Event) bool {
 		return true
 	case *sdl.MouseButtonEvent:
 		s.bird.jump()
-	case *sdl.MouseMotionEvent, *sdl.WindowEvent, *sdl.TouchFingerEvent, *sdl.CommonEvent:
 	default:
-		log.Printf("unknown event %T", e)
 	}
 	return false
 }
 
 func (s *scene) update() {
 	s.bird.update()
+	s.pipes.update()
+	s.bird.touch(s.pipes)
+}
+
+func (s *scene) restart() {
+	s.bird.restart()
+	s.pipes.restart()
 }
 
 func (s *scene) paint(r *sdl.Renderer) error {
@@ -78,6 +97,10 @@ func (s *scene) paint(r *sdl.Renderer) error {
 		return fmt.Errorf("could not paint bird: %v", err)
 	}
 
+	if err := s.pipes.paint(r); err != nil {
+		return fmt.Errorf("could not paint pipes: %v", err)
+	}
+
 	r.Present()
 	return nil
 }
@@ -85,4 +108,5 @@ func (s *scene) paint(r *sdl.Renderer) error {
 func (s *scene) destroy() {
 	s.bg.Destroy()
 	s.bird.destroy()
+	s.pipes.destroy()
 }

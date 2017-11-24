@@ -2,21 +2,27 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 const (
+	bw        = 50
+	bh        = 43
+	startBX   = 20
 	gravaty   = 0.1
 	jumpSpeed = 5
 )
 
 type bird struct {
-	dead        bool
-	time        int
-	x, y, speed float64
-	textures    []*sdl.Texture
+	sync.RWMutex
+	dead     bool
+	time     int
+	x, y     int
+	speed    float64
+	textures []*sdl.Texture
 }
 
 func newBird(r *sdl.Renderer) (*bird, error) {
@@ -29,24 +35,64 @@ func newBird(r *sdl.Renderer) (*bird, error) {
 		}
 		textures = append(textures, texture)
 	}
-	return &bird{time: 0, textures: textures, x: 10, y: 250 - 43/2}, nil
+	return &bird{time: 0, textures: textures, x: startBX, y: (winHeigth - bh) / 2}, nil
 }
 
 func (b *bird) update() {
+	b.Lock()
+	defer b.Unlock()
+	b.y += int(b.speed)
+	if b.y >= winHeigth-bh {
+		b.dead = true
+	}
 	b.time++
 	b.speed += gravaty
-	b.y += b.speed
-	if b.y >= 500-43 {
-		b.speed = -jumpSpeed
-	}
 }
 
 func (b *bird) jump() {
+	b.Lock()
+	defer b.Unlock()
 	b.speed = -jumpSpeed
 }
 
+func (b *bird) isDead() bool {
+	b.Lock()
+	defer b.Unlock()
+	return b.dead
+}
+
+func (b *bird) restart() {
+	b.Lock()
+	defer b.Unlock()
+	b.y = (winWidth - bh) / 2
+	b.dead = false
+	b.speed = 0
+}
+
+func (b *bird) touch(ps *pipes) {
+	ps.RLock()
+	defer ps.RUnlock()
+	for _, p := range ps.pipes {
+		p.RLock()
+		if p.x-pw/2 <= b.x+bw/2 && b.x-bw/2 <= p.x+pw/2 {
+			if p.inverted {
+				if b.y <= p.h {
+					b.dead = true
+				}
+			} else {
+				if b.y >= winHeigth-p.h {
+					b.dead = true
+				}
+			}
+		}
+		p.RUnlock()
+	}
+}
+
 func (b *bird) paint(r *sdl.Renderer) error {
-	rect := &sdl.Rect{X: int32(b.x), Y: int32(b.y), W: 50, H: 43}
+	b.RLock()
+	defer b.RUnlock()
+	rect := &sdl.Rect{X: int32(b.x), Y: int32(b.y), W: bw, H: bh}
 	if err := r.Copy(b.textures[b.time/10%len(b.textures)], nil, rect); err != nil {
 		return fmt.Errorf("could not copy bird: %v", err)
 	}
@@ -54,6 +100,8 @@ func (b *bird) paint(r *sdl.Renderer) error {
 }
 
 func (b *bird) destroy() {
+	b.Lock()
+	defer b.Unlock()
 	for _, t := range b.textures {
 		t.Destroy()
 	}

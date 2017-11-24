@@ -9,6 +9,11 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+const (
+	winWidth  = 800
+	winHeigth = 600
+)
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
@@ -29,7 +34,7 @@ func run() error {
 	}
 	defer ttf.Quit()
 
-	w, r, err := sdl.CreateWindowAndRenderer(1000, 500, sdl.WINDOW_SHOWN)
+	w, r, err := sdl.CreateWindowAndRenderer(winWidth, winHeigth, sdl.WINDOW_SHOWN)
 	if err != nil {
 		return fmt.Errorf("could not create window: %v", err)
 	}
