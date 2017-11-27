@@ -24,4 +24,4 @@ $ ./flappy-go
 
 ## Screenshot
 
-![flappy-go-gif](http://oonvtay51.bkt.clouddn.com/flappy-gopher.gif)
+[flappy-go-gif](http://oonvtay51.bkt.clouddn.com/flappy-gopher.gif)
